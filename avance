@@ -1,0 +1,46 @@
+from fenics import *
+import matplotlib.pyplot as plt
+
+# Definir el espacio de la funcion y crear la malla
+mesh = UnitSquareMesh(8, 8)
+V = FunctionSpace(mesh, 'P', 1)
+
+# Definir la condicion de borde
+u_D = Expression('-sin(pi*x[0])', degree=2)
+
+def boundary(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V, u_D, boundary)
+
+# Definir el problema variacional
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Constant(-1.0)
+a = dot(grad(u), grad(v))*dx
+L = f*v*dx
+
+# solucion computacional
+u = Function(V)
+solve(a == L, u, bc)
+
+# Grafica de solucion y malla
+plot(u)
+plot(mesh)
+plt.savefig('burgers.eps')
+# Guardar el archivo en formato VTK 
+vtkfile = File('burgers/solution.pvd')
+vtkfile << u
+
+# Error en norma L2 
+error_L2 = errornorm(u_D, u, 'L2')
+
+# Error maximo
+vertex_values_u_D = u_D.compute_vertex_values(mesh)
+vertex_values_u = u.compute_vertex_values(mesh)
+import numpy as np
+error_max = np.max(np.abs(vertex_values_u_D - vertex_values_u))
+
+# Imprimir errores
+print('error_L2  =', error_L2)
+print('error_max =', error_max)
