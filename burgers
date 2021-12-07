@@ -1,0 +1,122 @@
+from fenics import *
+
+def burgers_tiempo(e_num,nu):
+ 
+  import matplotlib.pyplot as plt
+
+#  Crear un mallado en el intervalo [0,+1].
+  x_left=-1.0
+  x_right=+1.0
+  mesh=IntervalMesh(e_num,x_left,x_right)
+
+#  Define el espacio de funciones
+
+  V=FunctionSpace(mesh,"CG",1)
+
+#  Definir las condiciones de frontera
+#  si X <= XLEFT + eps, entonces U = U_LEFT
+#  si X_RIGHT - eps <= X, then U = U_RIGHT
+
+  u_left=-1.0
+  def on_left(x,on_boundary):
+    return (on_boundary and near(x[0],x_left))
+  bc_left=DirichletBC(V,u_left,on_left )
+
+  u_right=+1.0
+  def on_right(x,on_boundary):
+    return(on_boundary and near(x[0],x_right))
+  bc_right=DirichletBC(V,u_right,on_right)
+
+  bc=[bc_left,bc_right]
+
+#  Define la condicion inicial
+
+  u_init=Expression("x[0]",degree=1)
+
+#  Definir las funciones de prueba
+
+  u=Function(V)
+  u_old=Function(V)
+  v=TestFunction(V)
+    
+# error L2
+  error_L2=errornorm(u_init,u,'L2')
+
+# error L2
+  print('error_L2=',error_L2)    
+
+  u.interpolate(u_init)
+  u_old.assign(u)
+
+#  Paso del tiempo
+
+  DT=Constant(0.01)
+  dt=0.01
+
+#  termino fuente
+
+  f=Expression("0.0",degree=0)
+
+  n=FacetNormal(mesh)
+
+#  Escribir la funcion ecuacion de burgers viscoso
+#
+  F = \
+  ( \
+    dot ( u - u_old, v ) / DT \
+  + nu * inner ( grad ( u ), grad ( v ) ) \
+  + inner ( u * u.dx(0), v ) \
+  - dot ( f, v ) \
+  ) * dx
+#
+#  Especificar el jacobiano
+#
+  J = derivative ( F, u )
+#
+#  Integracion en el tiempo
+#
+  k = 0
+  t = 0.0
+
+  t_plot = 0.0
+  t_final = 0.5
+
+
+
+  while ( True ):
+
+    if ( k % 10 == 0 ):
+      plot ( u, title = ( 'Tiempo ecuacion de burgers %g' % ( t ) ) )
+      plt.grid ( True )
+      filename = ( 'burgers_tiempo_%d.png' % ( k ) )
+      plt.savefig ( filename )
+      print ( 'Grafica guardada como "%s"' % ( filename ) )
+      plt.close ( )
+      t_plot = t_plot + 0.1
+
+    if ( t_final <= t ):
+      break
+
+    k = k + 1
+    t = t + dt
+
+    solve ( F == 0, u, bc, J = J )
+
+    u_old.assign ( u )
+
+  return
+
+def burgers_tiempo_prueba ( ):
+
+  level = 30
+  set_log_level ( level )
+
+  e_num = 8
+  nu = 0.05
+  burgers_tiempo ( e_num, nu )
+  return
+
+ 
+if ( __name__ == '__main__' ):
+
+  burgers_tiempo_prueba ( )
